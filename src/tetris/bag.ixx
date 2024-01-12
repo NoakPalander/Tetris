@@ -1,7 +1,7 @@
 module;
 
 #include <fmt/format.h>
-#include <SFML/Graphics/Text.hpp>
+#include <SFML/Graphics/Texture.hpp>
 
 #include <filesystem>
 #include <vector>
@@ -35,6 +35,7 @@ namespace tetris {
                 throw std::invalid_argument(fmt::format("Couldn't find the texture {}", path.c_str()));
             }
 
+            texture_.setSmooth(true);
             fill();
         }
 

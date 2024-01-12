@@ -13,7 +13,7 @@ int main() {
         game.run();
     }
     catch (std::exception& e) {
-        fmt::println(::stderr, "Failed to run the game: {}", e.what());
+        fmt::println(::stderr, "Failed to run the game, reason: {}", e.what());
     }
     catch (...) {
         fmt::println(::stderr, "Unknown error launching the game");

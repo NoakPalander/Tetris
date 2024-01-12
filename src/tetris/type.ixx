@@ -29,7 +29,7 @@ export namespace tetris {
     constexpr utils::Map<Type, std::array<Point<int>, CELL_COUNT>, TYPE_COUNT> TYPE_MAP {
         std::pair{Type::I, std::array{Point{0, 0}, Point{1, 0}, Point{2, 0}, Point{3, 0}}},
         std::pair{Type::O, std::array{Point{0, 0}, Point{1, 0}, Point{0, 1}, Point{1, 1}}},
-        std::pair{Type::T, std::array{Point{0, 0}, Point{1, 0}, Point{2, 0}, Point{1, 1}}},
+        std::pair{Type::T, std::array{Point{0, 1}, Point{1, 1}, Point{2, 1}, Point{1, 0}}},
         std::pair{Type::J, std::array{Point{1, 0}, Point{1, 1}, Point{1, 2}, Point{0, 2}}},
         std::pair{Type::L, std::array{Point{0, 0}, Point{0, 1}, Point{0, 2}, Point{1, 2}}},
         std::pair{Type::S, std::array{Point{0, 1}, Point{1, 1}, Point{1, 0}, Point{2, 0}}},

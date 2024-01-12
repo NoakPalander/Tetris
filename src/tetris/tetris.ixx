@@ -12,12 +12,13 @@ import :direction;
 import :bag;
 import :type;
 import :turn;
+import :board;
 import settings;
 
 namespace tetris {
     export class Game {
-        static constexpr int SCREEN_WIDTH = 1200;
-        static constexpr int SCREEN_HEIGHT = 800;
+        static constexpr int SCREEN_WIDTH = 180 * 2;
+        static constexpr int SCREEN_HEIGHT = 360 * 2;
 
         Settings settings_;
         Bag bag_;
@@ -36,7 +37,7 @@ namespace tetris {
             events_.add(sf::Event::KeyPressed, [this](sf::Event const& event) {
                 switch (event.key.code) {
                     case sf::Keyboard::Return:
-                        current_ = bag_.next(Point{100.f, 100.f});
+                        current_ = bag_.next();
                         break;
 
                     case sf::Keyboard::F:
@@ -81,6 +82,8 @@ namespace tetris {
             while (window_.isOpen()) {
                 events_.poll(window_);
                 window_.clear(sf::Color::White);
+
+                board::render(window_);
                 current_.render(window_);
                 window_.display();
             }
