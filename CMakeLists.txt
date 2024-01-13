@@ -15,7 +15,10 @@ set(TETRIS_MODULES
     src/utils/map.ixx
     src/tetris/bag.ixx
     src/tetris/turn.ixx
-    src/tetris/board.ixx)
+    src/utils/size.ixx
+    src/utils/point.ixx
+    src/tetris/well.ixx
+    src/utils/modulo.ixx)
 
 add_executable(tetris src/main.cpp ${TETRIS_MODULES})
 target_sources(tetris PUBLIC FILE_SET CXX_MODULES FILES ${TETRIS_MODULES})

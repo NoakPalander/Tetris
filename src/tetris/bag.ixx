@@ -12,6 +12,7 @@ export module tetris:bag;
 
 import :tetromino;
 import :type;
+import utils;
 
 namespace tetris {
     class Bag {
@@ -21,7 +22,7 @@ namespace tetris {
         void fill() {
             // Tetris guarantees that no shape can occur more than once per 7 pieces
             for (int i = 0; i < TYPE_COUNT; ++i) {
-                bag_.emplace_back(static_cast<Type>(i), texture_);
+                bag_.emplace_back(static_cast<Type>(i), utils::Size{18 * 2, 18 * 2});
             }
 
             thread_local std::random_device rd;
@@ -39,7 +40,7 @@ namespace tetris {
             fill();
         }
 
-        Tetromino next(Point<float> p = {0, 0}) {
+        Tetromino next(utils::Point<float> p = {0, 0}) {
             if (bag_.empty()) {
                 fill();
             }

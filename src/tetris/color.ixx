@@ -2,7 +2,7 @@ module;
 
 #include <fmt/format.h>
 #include <utility>
-#include <string_view>
+#include <string>
 
 export module tetris:color;
 
@@ -10,7 +10,16 @@ import :type;
 import utils;
 
 export namespace tetris {
-    enum class Color { BLUE, PURPLE, RED, GREEN, YELLOW, CYAN, ORANGE };
+    enum class Color : std::uint32_t {
+        BLUE   = 0x00'00'FF'FF,
+        PURPLE = 0x80'00'80'FF,
+        RED    = 0xFF'00'00'FF,
+        GREEN  = 0x00'FF'00'FF,
+        YELLOW = 0xFF'FF'00'FF,
+        CYAN   = 0x00'FF'FF'FF,
+        ORANGE = 0xFF'7F'00'FF,
+        GRAY   = 0x7F'7F'7F'FF,
+    };
 
     constexpr utils::Map<Type, Color, TYPE_COUNT> COLOR_MAP {
         std::pair{Type::I, Color::CYAN},
@@ -24,37 +33,38 @@ export namespace tetris {
 }
 
 export template<>
-struct fmt::formatter<tetris::Color> : formatter<std::string_view> {
+struct fmt::formatter<tetris::Color> : formatter<std::string> {
     auto format(tetris::Color color, format_context& ctx) const {
+        using namespace std::string_literals;
         using tetris::Color;
-        std::string_view const str = [color] {
+        std::string const str = [color] {
             switch (color) {
                 case Color::BLUE:
-                    return "blue";
+                    return "blue"s;
 
                 case Color::PURPLE:
-                    return "purple";
+                    return "purple"s;
 
                 case Color::RED:
-                    return "red";
+                    return "red"s;
 
                 case Color::GREEN:
-                    return "green";
+                    return "green"s;
 
                 case Color::YELLOW:
-                    return "yellow";
+                    return "yellow"s;
 
                 case Color::CYAN:
-                    return "cyan";
+                    return "cyan"s;
 
                 case Color::ORANGE:
-                    return "orange";
+                    return "orange"s;
 
                 default:
-                    std::unreachable();
+                    return fmt::format("{}", std::to_underlying(color));
             }
         }();
 
-        return formatter<string_view>::format(str, ctx);
+        return formatter<std::string>::format(str, ctx);
     }
 };

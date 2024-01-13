@@ -12,7 +12,7 @@ import :direction;
 import :bag;
 import :type;
 import :turn;
-import :board;
+import :well;
 import settings;
 
 namespace tetris {
@@ -22,9 +22,16 @@ namespace tetris {
 
         Settings settings_;
         Bag bag_;
+        Well well_;
         Tetromino current_;
         Events events_;
         sf::RenderWindow window_;
+
+        void drop_piece() {
+            while (current_.move(Direction::DOWN, well_, SCREEN_WIDTH, SCREEN_HEIGHT));
+            well_.add(current_.blocks());
+            current_ = bag_.next();
+        }
 
     public:
         explicit Game(Settings settings)
@@ -38,6 +45,10 @@ namespace tetris {
                 switch (event.key.code) {
                     case sf::Keyboard::Return:
                         current_ = bag_.next();
+                        break;
+
+                    case sf::Keyboard::Space:
+                        drop_piece();
                         break;
 
                     case sf::Keyboard::F:
@@ -54,22 +65,22 @@ namespace tetris {
 
                     case sf::Keyboard::Left:
                     case sf::Keyboard::A:
-                        current_.move(Direction::LEFT, SCREEN_WIDTH, SCREEN_HEIGHT);
+                        current_.move(Direction::LEFT, well_, SCREEN_WIDTH, SCREEN_HEIGHT);
                         break;
 
                     case sf::Keyboard::Right:
                     case sf::Keyboard::D:
-                        current_.move(Direction::RIGHT, SCREEN_WIDTH, SCREEN_HEIGHT);
+                        current_.move(Direction::RIGHT, well_, SCREEN_WIDTH, SCREEN_HEIGHT);
                         break;
 
                     case sf::Keyboard::Up:
                     case sf::Keyboard::W:
-                        current_.move(Direction::UP, SCREEN_WIDTH, SCREEN_HEIGHT);
+                        current_.move(Direction::UP, well_, SCREEN_WIDTH, SCREEN_HEIGHT);
                         break;
 
                     case sf::Keyboard::Down:
                     case sf::Keyboard::S:
-                        current_.move(Direction::DOWN, SCREEN_WIDTH, SCREEN_HEIGHT);
+                        current_.move(Direction::DOWN, well_, SCREEN_WIDTH, SCREEN_HEIGHT);
                         break;
 
                     default:
@@ -82,9 +93,8 @@ namespace tetris {
             while (window_.isOpen()) {
                 events_.poll(window_);
                 window_.clear(sf::Color::White);
-
-                board::render(window_);
                 current_.render(window_);
+                well_.render(window_);
                 window_.display();
             }
         }

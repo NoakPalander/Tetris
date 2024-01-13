@@ -2,8 +2,8 @@ module;
 
 #include <fmt/format.h>
 #include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/Graphics/RectangleShape.hpp>
 #include <algorithm>
 #include <cassert>
 #include <utility>
@@ -16,163 +16,190 @@ import :direction;
 import :type;
 import :color;
 import :turn;
+import :well;
+import utils;
 
 namespace tetris {
-    export {
-        class Tetromino {
-            static constexpr int WIDTH = 18 * 2;
-            static constexpr int HEIGHT = 18 * 2;
+    export class Tetromino {
+        constexpr static std::array ADJUSTMENTS{utils::Point{0, 1}, utils::Point{-1, 0}, utils::Point{0, -1}, utils::Point{1, 0}};
+        utils::Modulo<int> index_;
 
-            static constexpr int TEXTURE_WIDTH = 18;
-            static constexpr int TEXTURE_HEIGHT = 18;
+        Type type_;
+        std::vector<sf::RectangleShape> cells_;
+        utils::Size<int> size_;
 
+        [[nodiscard]]
+        bool well_collision(std::vector<utils::Point<float>> const& points, Well const& well) const {
+            return std::ranges::any_of(points, [&well, this](auto&& block) {
+                return well.collides(sf::Rect<float>(
+                    block.x,
+                    block.y,
+                    static_cast<float>(size_.width),
+                    static_cast<float>(size_.height))
+                );
+            });
+        }
 
-            Type type_;
-            std::vector<sf::Sprite> cells_;
+        [[nodiscard]]
+        bool wall_collision(std::vector<utils::Point<float>> const& points, float width, float height) const {
+            return std::ranges::any_of(points,[=](utils::Point<float> p) {
+                return (p.x < 0 || p.x >= width) || (p.y < 0 || p.y >= height);
+            });
+        }
 
-            // Validates all points to be inside the board
-            bool valid_positions(std::vector<Point<float>> const& points, float width, float height) {
-                return std::ranges::all_of(points, [=](Point<float> p) {
-                    fmt::println("({}, {})", p.x, p.y);
-                    return (p.x >= 0 && p.x < width) && (p.y >= 0 && p.y < height);
-                });
+        [[nodiscard]]
+        bool valid_move(std::vector<utils::Point<float>> const& points, Well const& well, float width, float height) const {
+            return !wall_collision(points, width, height) && !well_collision(points, well);
+        }
+
+        void rotate_cw(std::vector<utils::Point<float>>& cells) {
+            if (type_ == Type::O) [[unlikely]]
+                return;
+
+            auto [center_x, center_y] = cells[1];
+            if (type_ == Type::I) {
+                center_x = cells[2].x;
+                center_y = cells[2].y;
             }
 
-            // ReSharper disable once CppParameterMayBeConstPtrOrRef
-            void rotate_cw(std::vector<Point<float>>& cells) {
-                fmt::println("Initiating clockwise rotation on '{}' shape", type_);
-                static std::array i_kick_table{Point{0, 1}, Point{-1, 0}, Point{0, -1}, Point{1, 0}};
-                static int i_kick_index = -1;
+            for (auto&& [x, y] : cells) {
+                float const new_x = y - center_y;
+                float const new_y = x - center_x;
 
-                auto [center_x, center_y] = cells[1];
+                x = center_x - new_x;
+                y = center_y + new_y;
+
                 if (type_ == Type::I) {
-                    i_kick_index = (i_kick_index + 1) % static_cast<int>(i_kick_table.size());
-                    center_x = cells[2].x;
-                    center_y = cells[2].y;
-                }
-
-                for (auto&& [x, y] : cells) {
-                    float const new_x = y - center_y;
-                    float const new_y = x - center_x;
-
-                    x = center_x - new_x;
-                    y = center_y + new_y;
-
-                    if (type_ == Type::I) {
-                        x += static_cast<float>(i_kick_table[static_cast<std::size_t>(i_kick_index)].x * WIDTH);
-                        y += static_cast<float>(i_kick_table[static_cast<std::size_t>(i_kick_index)].y * HEIGHT);
-                    }
+                    utils::Point const offsets = ADJUSTMENTS[static_cast<std::size_t>(index_)];
+                    x += static_cast<float>(offsets.x * size_.width);
+                    y += static_cast<float>(offsets.y * size_.height);
                 }
             }
 
-            // ReSharper disable once CppParameterMayBeConstPtrOrRef
-            void rotate_ccw(std::vector<Point<float>>& cells, float center_x, float center_y) {
-                fmt::println("Initiating counter clockwise rotation on '{}' shape", type_);
+            if (type_ == Type::I) {
+                ++index_;
+            }
+        }
 
-                for (auto&& [x, y] : cells) {
-                    float const new_x = y - center_y;
-                    float const new_y = x - center_x;
+        void rotate_ccw(std::vector<utils::Point<float>>& cells) {
+            if (type_ == Type::O) [[unlikely]]
+                return;
 
-                    x = center_x + new_x;
-                    y = center_y - new_y;
+            auto [center_x, center_y] = cells[1];
+            for (auto&& [x, y] : cells) {
+                float const new_x = y - center_y;
+                float const new_y = x - center_x;
+
+                x = center_x + new_x;
+                y = center_y - new_y;
+
+                if (type_ == Type::I) {
+                    utils::Point const offsets = ADJUSTMENTS[static_cast<std::size_t>(index_)];
+                    x += static_cast<float>(offsets.x * size_.width);
+                    y += static_cast<float>(offsets.y * size_.height);
                 }
             }
 
-            // Sets the positions of the cells to the points
-            void set_positions(std::vector<Point<float>> const& points) {
-                assert(points.size() == cells_.size());
+            if (type_ == Type::I) {
+                --index_;
+            }
+        }
 
-                for (std::size_t i = 0; i < points.size(); ++i) {
-                    cells_[i].setPosition(points[i].x, points[i].y);
+        // Sets the positions of the cells to the points
+        void set_positions(std::vector<utils::Point<float>> const& points) {
+            assert(points.size() == cells_.size());
+
+            for (std::size_t i = 0; i < points.size(); ++i) {
+                cells_[i].setPosition(points[i].x, points[i].y);
+            }
+        }
+
+    public:
+        explicit Tetromino(Type type, utils::Size<int> size, utils::Point<float> initial = {0, 0})
+            : index_{0, ADJUSTMENTS.size()}, type_{type}, size_{size}
+        {
+            cells_.reserve(CELL_COUNT);
+            for (auto[x, y] : TYPE_MAP.at(type)) {
+
+                sf::RectangleShape shape;
+                shape.setPosition(
+                    static_cast<float>(x) * static_cast<float>(size_.width) + initial.x,
+                    static_cast<float>(y) * static_cast<float>(size_.height) + initial.y
+                );
+
+                shape.setSize({static_cast<float>(size_.width), static_cast<float>(size_.height)});
+                shape.setFillColor(sf::Color(std::to_underlying(COLOR_MAP.at(type))));
+                shape.setOutlineColor(sf::Color::Black);
+                cells_.emplace_back(std::move(shape));
+            }
+        }
+
+        void set_position(utils::Point<float> p) {
+            for (auto&& cell : cells_) {
+                auto [x, y] = cell.getPosition();
+                cell.setPosition(x + p.x, y + p.y);
+            }
+        }
+
+        [[nodiscard]] std::vector<sf::RectangleShape> const& blocks() const {
+            return cells_;
+        }
+
+        bool move(Direction direction, Well const& well, int screen_width, int screen_height) {
+            std::vector<utils::Point<float>> new_points;
+            std::ranges::transform(cells_, std::back_inserter(new_points), [this, direction](auto&& cell){
+                auto [x, y] = cell.getPosition();
+                switch (direction) {
+                    case Direction::LEFT:
+                        return utils::Point{x - size_.width, y};
+
+                    case Direction::RIGHT:
+                        return utils::Point{x + size_.width, y};
+
+                    case Direction::UP:
+                        return utils::Point{x, y - size_.height};
+
+                    case Direction::DOWN:
+                        return utils::Point{x, y + size_.height};
+
+                    default:
+                        std::unreachable();
                 }
+            });
+
+            if (valid_move(new_points, well, static_cast<float>(screen_width), static_cast<float>(screen_height))) {
+                set_positions(new_points);
+                return true;
             }
 
-        public:
-            explicit Tetromino(Type type, sf::Texture const& texture, Point<float> initial = {0, 0}) : type_{type} {
-                cells_.reserve(CELL_COUNT);
-                for (auto[x, y] : TYPE_MAP.at(type)) {
-                    sf::Sprite sprite(texture);
-                    sprite.setTextureRect(sf::IntRect(
-                        static_cast<int>(COLOR_MAP.at(type)) * TEXTURE_WIDTH,
-                        0,
-                        TEXTURE_WIDTH,
-                        TEXTURE_HEIGHT
-                    ));
+            return false;
+        }
 
-                    sprite.setPosition(
-                        static_cast<float>(x) * WIDTH + initial.x,
-                        static_cast<float>(y) * HEIGHT + initial.y
-                    );
+        void rotate(Turn turn) {
+            // Rotations on O-shapes is a noop
+            if (type_ == Type::O) [[unlikely]]
+                return;
 
-                    sprite.scale(2, 2);
-                    cells_.emplace_back(std::move(sprite));
-                }
+            std::vector<utils::Point<float>> points;
+            std::ranges::transform(cells_, std::back_inserter(points), [](auto&& cell) {
+                return utils::Point{cell.getPosition().x, cell.getPosition().y};
+            });
+
+            if (turn == Turn::CLOCKWISE) {
+                // TODO: validate / wall-kick / try next center
+                rotate_cw(points);
+                set_positions(points);
             }
-
-            void set_position(Point<float> p) {
-                for (auto&& cell : cells_) {
-                    auto [x, y] = cell.getPosition();
-                    cell.setPosition(x + p.x, y + p.y);
-                }
+            else {
+                rotate_ccw(points);
+                set_positions(points);
             }
+        }
 
-            void move(Direction direction, int screen_width, int screen_height) {
-                auto next_position = [direction](sf::Sprite const& cell) {
-                    auto [x, y] = cell.getPosition();
-                    switch (direction) {
-                        case Direction::LEFT:
-                            return Point{x - WIDTH, y};
-
-                        case Direction::RIGHT:
-                            return Point{x + WIDTH, y};
-
-                        case Direction::UP:
-                            return Point{x, y - HEIGHT};
-
-                        case Direction::DOWN:
-                            return Point{x, y + HEIGHT};
-
-                        default:
-                            std::unreachable();
-                    }
-                };
-
-                std::vector<Point<float>> new_points;
-                for (auto const& cell : cells_) {
-                    new_points.emplace_back(next_position(cell));
-                }
-
-                if (valid_positions(new_points, static_cast<float>(screen_width), static_cast<float>(screen_height))) {
-                    set_positions(new_points);
-                }
+        void render(sf::RenderWindow& window) const {
+            for (auto&& cell : cells_) {
+                window.draw(cell);
             }
-
-            void rotate(Turn turn) {
-                // Rotations on O-shapes is a noop
-                if (type_ == Type::O) [[unlikely]]
-                    return;
-
-                std::vector<Point<float>> points;
-                std::ranges::transform(cells_, std::back_inserter(points), [](auto&& cell) {
-                    return Point{cell.getPosition().x, cell.getPosition().y};
-                });
-
-                if (turn == Turn::CLOCKWISE) {
-                    // TODO: validate / wall-kick / try next center
-                    rotate_cw(points);
-                    set_positions(points);
-                }
-                else {
-                    rotate_ccw(points, points[1].x, points[1].y);
-                    set_positions(points);
-                }
-            }
-
-            void render(sf::RenderWindow& window) const {
-                for (auto&& cell : cells_) {
-                    window.draw(cell);
-                }
-            }
-        };
-    }
+        }
+    };
 }
